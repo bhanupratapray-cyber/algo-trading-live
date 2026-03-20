@@ -1,0 +1,5 @@
+Flask==3.0.0
+yfinance==0.2.33
+vaderSentiment==3.3.2
+pandas==2.1.4
+gunicorn
