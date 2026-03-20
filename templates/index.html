@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Algorithmic Trading Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 40px; }
+        h1 { color: #333; text-align: center; }
+        .dashboard { width: 90%; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); margin-bottom: 30px;}
+        .suggestions-box { background-color: #e8f4f8; border-left: 6px solid #2980b9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #2c3e50; color: white; }
+        tr:hover { background-color: #f1f1f1; }
+        .highlight { font-weight: bold; }
+        
+        .detail-btn { background-color: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-left: 10px; }
+        .detail-btn:hover { background-color: #2980b9; }
+        .details-box { display: none; background-color: #f9f9f9; padding: 10px; border: 1px dashed #ccc; margin-top: 5px; font-size: 12px; }
+        
+        .filter-select { padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard suggestions-box">
+        <h2 style="margin-top: 0; color: #2980b9;">🏆 Top Algorithmic Suggestions</h2>
+        <p style="color: #555; font-size: 14px; margin-bottom: 5px;">These setups were found by your background market scanner.</p>
+        <p style="color: #e74c3c; font-size: 13px; font-weight: bold; margin-top: 0;">🕒 Last Scan: {{ last_updated }}</p>
+        
+        <select class="filter-select" id="sugFilter" onchange="filterTable('sugTable', 'sugFilter', 6)">
+            <option value="ALL">Show All Verdicts</option>
+            <option value="🔥 STRONG BUY">🔥 STRONG BUY</option>
+            <option value="💡 POTENTIAL REVERSAL">💡 POTENTIAL REVERSAL</option>
+            <option value="⚠️ CAUTION">⚠️ CAUTION</option>
+        </select>
+
+        <table id="sugTable">
+            <tr>
+                <th>Stock Symbol</th>
+                <th>Current Price</th>
+                <th>RSI (14)</th>
+                <th>40-Day MA</th>
+                <th>20-Day EMA</th> 
+                <th>Pivot (P)</th>
+                <th>System Verdict</th>
+            </tr>
+            {% for pick in top_picks %}
+            <tr>
+                <td class="highlight">{{ pick[0] }}</td>
+                <td>₹{{ pick[1] }}</td>
+                <td>{{ pick[2] }}</td>
+                <td>₹{{ pick[3] }}</td>
+                <td>₹{{ pick[5] }}</td> 
+                <td>₹{{ pick[6] }}</td> 
+                <td class="highlight">{{ pick[7] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="dashboard">
+        <h2>🔍 Live On-Demand Scan</h2>
+        
+        <div style="margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+            <form method="POST">
+                <input type="text" name="ticker" placeholder="Enter Stock Ticker (e.g., ITBEES)" style="padding: 10px; width: 250px; border-radius: 5px; border: 1px solid #ccc;" required>
+                <input type="number" name="ema_period" placeholder="EMA Length (e.g., 20)" value="{{ current_ema }}" style="padding: 10px; width: 180px; border-radius: 5px; border: 1px solid #ccc; margin-left: 10px;" required>
+                <button type="submit" style="padding: 10px 20px; background-color: #2c3e50; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">Analyze Stock</button>
+                
+                <div style="margin-top: 15px; font-size: 14px;">
+                    <strong style="color: #2c3e50;">Require these conditions for a BUY signal:</strong><br>
+                    <label style="margin-right: 15px;"><input type="checkbox" name="criteria" value="ma50" {% if 'ma50' in active_criteria %}checked{% endif %}> Price > 50-Day MA</label>
+                    <label style="margin-right: 15px;"><input type="checkbox" name="criteria" value="ema" {% if 'ema' in active_criteria %}checked{% endif %}> Price > EMA</label>
+                    <label style="margin-right: 15px;"><input type="checkbox" name="criteria" value="pivot" {% if 'pivot' in active_criteria %}checked{% endif %}> Price > Pivot</label>
+                    <label style="margin-right: 15px;"><input type="checkbox" name="criteria" value="rsi" {% if 'rsi' in active_criteria %}checked{% endif %}> RSI (< 70)</label>
+                    <label style="margin-right: 15px;"><input type="checkbox" name="criteria" value="news" {% if 'news' in active_criteria %}checked{% endif %}> Positive AI News</label>
+                </div>
+            </form>
+        </div>
+        
+        <select class="filter-select" id="liveFilter" onchange="filterTable('liveTable', 'liveFilter', 8)">
+            <option value="ALL">Show All Verdicts</option>
+            <option value="🟡 NO ACTION REQUIRED">🟡 NO ACTION REQUIRED</option>
+            <option value="🔥 STRONG CONVICTION BUY">🔥 STRONG CONVICTION BUY</option>
+            <option value="💡 POTENTIAL REVERSAL">💡 POTENTIAL REVERSAL</option>
+            <option value="⚠️ CAUTION">⚠️ CAUTION</option>
+        </select>
+
+        <table id="liveTable">
+            <tr>
+                <th>Stock</th>
+                <th>Current Price</th>
+                <th>RSI (14)</th>
+                <th>40-Day MA</th>
+                <th>{{ current_ema }}-Day EMA</th> 
+                <th>Pivot (P)</th>
+                <th>Math Signal</th>
+                <th>News Mood</th>
+                <th>Final Verdict</th>
+            </tr>
+            {% for item in results %}
+            <tr>
+                <td class="highlight">{{ item.ticker }}</td>
+                <td>₹{{ item.price }}</td>
+                <td>
+                    {{ item.rsi }}
+                    <button class="detail-btn" onclick="toggleDetails('rsi-{{ loop.index }}')">Detail</button>
+                    <div id="rsi-{{ loop.index }}" class="details-box">
+                        <strong>14-Day Live Math:</strong><br>
+                        Average Gain: {{ item.avg_gain }}<br>
+                        Average Loss: {{ item.avg_loss }}<br>
+                        <hr style="border: 0.5px solid #ccc; margin: 5px 0;">
+                        RS = {{ item.avg_gain }} ÷ {{ item.avg_loss }} = {{ item.rs_value }}<br>
+                        RSI = 100 - (100 / (1 + {{ item.rs_value }})) = <strong>{{ item.rsi }}</strong>
+                    </div>
+                </td>
+                <td>₹{{ item.ma_40 }}</td>
+                <td>
+                    ₹{{ item.ema_val }}
+                    <button class="detail-btn" onclick="toggleDetails('ema-{{ loop.index }}')">Detail</button>
+                    <div id="ema-{{ loop.index }}" class="details-box">
+                        <strong>Exponential Moving Average ({{ current_ema }} Days)</strong><br>
+                        Current Price: ₹{{ item.price }}<br>
+                        Price is currently <strong>{% if item.price > item.ema_val %}ABOVE{% else %}BELOW{% endif %}</strong> the {{ current_ema }}-Day EMA.
+                    </div>
+                </td>
+                
+                <td>
+                    ₹{{ item.pivot }}
+                    <button class="detail-btn" onclick="toggleDetails('pivot-{{ loop.index }}')">Detail</button>
+                    <div id="pivot-{{ loop.index }}" class="details-box">
+                        <strong>Standard Pivot Math (Yesterday's Data):</strong><br>
+                        High: ₹{{ item.prev_high }} | Low: ₹{{ item.prev_low }} | Close: ₹{{ item.prev_close }}<br>
+                        <hr style="border: 0.5px solid #ccc; margin: 5px 0;">
+                        <strong>Pivot (P)</strong> = (H + L + C) ÷ 3 = <strong>₹{{ item.pivot }}</strong><br>
+                        <strong>Resistance 1 (R1)</strong> = (P × 2) - L = <strong>₹{{ item.r1 }}</strong><br>
+                        <strong>Support 1 (S1)</strong> = (P × 2) - H = <strong>₹{{ item.s1 }}</strong>
+                    </div>
+                </td>
+                
+                <td>
+                    {{ item.math }}
+                    <button class="detail-btn" onclick="toggleDetails('math-{{ loop.index }}')">Detail</button>
+                    <div id="math-{{ loop.index }}" class="details-box">
+                        <strong>Live Conditions:</strong><br>
+                        Current Price: ₹{{ item.price }}<br>
+                        50-Day MA: ₹{{ item.ma_50 }}<br>
+                        Price is currently <strong>{% if item.price > item.ma_50 %}ABOVE{% else %}BELOW{% endif %}</strong> the 50-Day MA.
+                    </div>
+                </td>
+                <td>
+                    {{ item.news }}
+                    <button class="detail-btn" onclick="toggleDetails('news-{{ loop.index }}')">Detail</button>
+                    <div id="news-{{ loop.index }}" class="details-box">
+                        <strong>AI Sentiment Scale:</strong><br>
+                        <em>-1.0 (Worst News) to +1.0 (Best News)</em><br>
+                        <strong>Total Average Score:</strong> {{ item.avg_news_score }}<br>
+                        <hr style="border: 0.5px solid #ccc; margin: 5px 0;">
+                        <strong>Articles Scanned:</strong>
+                        <ul style="margin: 5px 0; padding-left: 20px; list-style-type: none;">
+                            {% for headline in item.news_details %}
+                                <li style="margin-bottom: 4px;">{{ headline }}</li>
+                            {% endfor %}
+                            {% if not item.news_details %}
+                                <li>No recent news found.</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </td>
+                <td class="highlight">{{ item.verdict }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <script>
+        function toggleDetails(elementId) {
+            var x = document.getElementById(elementId);
+            if (x.style.display === "none" || x.style.display === "") {
+                x.style.display = "block";
+            } else {
+                x.style.display = "none";
+            }
+        }
+
+        function filterTable(tableId, dropdownId, columnNumber) {
+            var dropdown = document.getElementById(dropdownId);
+            var filterValue = dropdown.value;
+            var table = document.getElementById(tableId);
+            var tr = table.getElementsByTagName("tr");
+
+            for (var i = 1; i < tr.length; i++) { 
+                var td = tr[i].getElementsByTagName("td")[columnNumber];
+                if (td) {
+                    var cellText = td.textContent || td.innerText;
+                    if (filterValue === "ALL" || cellText.includes(filterValue)) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>
