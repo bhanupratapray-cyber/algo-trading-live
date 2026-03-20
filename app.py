@@ -17,7 +17,6 @@ def home():
     top_picks = []
     last_updated = "No Data Yet"
     try:
-        # Dynamically find the database file in the current folder
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         db_path = os.path.join(BASE_DIR, 'market_data.db')
         
@@ -26,16 +25,14 @@ def home():
         cursor.execute("SELECT ticker, price, rsi, ma_40, ma_50, ema_20, pivot, verdict, scan_date FROM top_picks")
         top_picks = cursor.fetchall() 
         if len(top_picks) > 0: 
-            last_updated = top_picks[0][8] # Scan Date is now the 8th item in the list
+            last_updated = top_picks[0][8]
         conn.close()
     except Exception as e:
-            print(f"🚨 YAHOO FINANCE ERROR: {e}")
+        pass
 
     # 2. DEFAULT SETTINGS
     tickers = []
     ema_period = 20 
-    
-    # Default checkboxes to be checked if you just load the page
     active_criteria = ['ma50', 'rsi', 'news'] 
     
     if request.method == 'POST':
@@ -44,24 +41,27 @@ def home():
         tickers = [user_ticker]
         
         user_ema = request.form.get('ema_period')
-        if user_ema and user_ema.isdigit():
-            ema_period = int(user_ema)
-            
-        # Get the list of checkboxes the user clicked
+        if user_ema and user_ema.isdigit(): ema_period = int(user_ema)
         active_criteria = request.form.getlist('criteria')
 
     scan_results = []
     
-   # 3. THE ON-DEMAND ENGINE
+    # 3. THE ON-DEMAND ENGINE
     for stock_name in tickers:
         try:
-            # Put on the Google Chrome disguise
             session = requests.Session()
             session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"})
             
             stock = yf.Ticker(stock_name, session=session)
             stock_data = stock.history(period="1y")
-            if len(stock_data) < 2: continue 
+            
+            if len(stock_data) < 2: 
+                # INJECTING ERROR TO UI
+                scan_results.append({
+                    "ticker": stock_name, "price": 0, "rsi": 0, "ma_40": 0, "ma_50": 0, "ema_val": 0, "pivot": 0, "r1": 0, "s1": 0, "prev_high": 0, "prev_low": 0, "prev_close": 0, "math": "N/A", "news": "N/A", "news_details": [], "avg_news_score": 0, "avg_gain": 0, "avg_loss": 0, "rs_value": 0, 
+                    "verdict": "🚨 ERROR: Yahoo blocked data (0 rows returned)"
+                })
+                continue 
                 
             stock_data['50_MA'] = stock_data['Close'].rolling(window=50).mean()
             stock_data['40_MA'] = stock_data['Close'].rolling(window=40).mean()
@@ -117,11 +117,8 @@ def home():
                 elif avg_score <= -0.05: news_signal = "NEGATIVE"
 
             # --- THE NEW DYNAMIC VERDICT LOGIC ---
-            buy_met = True
-            oversold_met = True
-            has_math = False
+            buy_met, oversold_met, has_math = True, True, False
             
-            # 1. Check only what the user selected
             if 'ma50' in active_criteria:
                 has_math = True
                 if latest_close <= latest_ma: buy_met = False
@@ -144,10 +141,8 @@ def home():
                 if buy_met: math_signal = "BUY"
                 elif oversold_met: math_signal = "OVERSOLD"
                 
-            # 2. Combine Math with News based on checkboxes
             verdict = "🟡 NO ACTION"
-            if not active_criteria:
-                verdict = "⚪ NO CRITERIA SELECTED"
+            if not active_criteria: verdict = "⚪ NO CRITERIA SELECTED"
             elif 'news' in active_criteria:
                 if math_signal == "BUY" and news_signal == "POSITIVE": verdict = "🔥 STRONG CONVICTION BUY"
                 elif math_signal == "OVERSOLD" and news_signal == "POSITIVE": verdict = "💡 POTENTIAL REVERSAL"
@@ -155,7 +150,6 @@ def home():
                 elif not has_math and news_signal == "POSITIVE": verdict = "🟢 BUY (News Only)"
                 elif not has_math and news_signal == "NEGATIVE": verdict = "🔴 SELL (News Only)"
             else:
-                # If they didn't check News, just output the math result
                 if math_signal == "BUY": verdict = "🟢 BUY (Math Only)"
                 elif math_signal == "OVERSOLD": verdict = "💡 OVERSOLD (Math Only)"
             
@@ -168,7 +162,11 @@ def home():
                 "avg_gain": avg_gain, "avg_loss": avg_loss, "rs_value": rs_value, "verdict": verdict
             })
         except Exception as e:
-            pass
+            # INJECTING PYTHON CRASH TO UI
+            scan_results.append({
+                "ticker": stock_name, "price": 0, "rsi": 0, "ma_40": 0, "ma_50": 0, "ema_val": 0, "pivot": 0, "r1": 0, "s1": 0, "prev_high": 0, "prev_low": 0, "prev_close": 0, "math": "ERROR", "news": "ERROR", "news_details": [str(e)], "avg_news_score": 0, "avg_gain": 0, "avg_loss": 0, "rs_value": 0, 
+                "verdict": f"🚨 PYTHON CRASH: {str(e)[:40]}"
+            })
 
     return render_template('index.html', results=scan_results, top_picks=top_picks, last_updated=last_updated, current_ema=ema_period, active_criteria=active_criteria)
 
