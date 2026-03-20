@@ -37,10 +37,7 @@ print(f"📊 Scanning {len(tickers)} stocks...\n")
 
 for stock_name in tickers:
     try:
-        session = requests.Session()
-        session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"})
-        
-        stock = yf.Ticker(stock_name, session=session)
+        stock = yf.Ticker(stock_name)
         stock_data = stock.history(period="1y")
         
         if len(stock_data) < 2: continue
