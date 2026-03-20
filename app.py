@@ -28,7 +28,7 @@ def home():
             last_updated = top_picks[0][8] # Scan Date is now the 8th item in the list
         conn.close()
     except Exception as e:
-        pass
+            print(f"🚨 YAHOO FINANCE ERROR: {e}")
 
     # 2. DEFAULT SETTINGS
     tickers = []
