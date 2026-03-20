@@ -4,6 +4,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import sqlite3
 import warnings
 import os
+import requests
 
 warnings.filterwarnings('ignore')
 
