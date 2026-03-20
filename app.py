@@ -31,7 +31,7 @@ def home():
         pass
 
     # 2. DEFAULT SETTINGS
-    tickers = ["TCS.NS", "INFY.NS", "SUNPHARMA.NS", "CIPLA.NS", "RELIANCE.NS"]
+    tickers = []
     ema_period = 20 
     
     # Default checkboxes to be checked if you just load the page
